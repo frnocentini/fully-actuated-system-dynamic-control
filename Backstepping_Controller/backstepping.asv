@@ -1,0 +1,68 @@
+addpath('../')
+generate_trajectory
+
+%% Trajectory tracking: Backstepping control
+
+
+% Good Circumference parameters
+Kp = 1* diag([1 1 1 1 3 1 1]);
+
+% Good Helix parameters
+% Kp = diag([1 1 1 1 3 1 1]);
+
+
+results_backstepping = q0;
+index = 1;
+q=q0
+dq=q_dot0
+ddq=[0 0 0 0 0 0 0]
+for i=1:length(t)
+
+   % Error and derivate of the error   
+    err = transpose(q_des(:,i)) - q;
+    derr = transpose(dq_des(:,i)) - dq;
+    
+    dqr = transpose(dq_des(:,i)) + err*(Kp);
+    ddqr = transpose(ddq_des(:,i)) + derr*(Kp);
+    s = derr + err*(Kp');
+     
+    %Get dynamic matrices
+    F = get_FrictionTorque(dq);
+    G = get_GravityVector(q);
+    C = get_CoriolisMatrix(q,dq);
+    M = get_MassMatrix(q);
+    
+
+
+    % Backstepping Controller
+    tau = (M*(ddqr') + C*(dqr') ...
+        + G + Kp*(s') + err')';      
+    
+    % Robot joint accelerations
+    ddq_old = ddq;
+    ddq = (pinv(M)*(tau - transpose(C*(dq'))- G')')';
+        
+    % Tustin integration
+    dq_old = dq;
+    dq = dq + (ddq_old + ddq) * delta_t / 2;
+    q = q + (dq + dq_old) * delta_t /2;
+    
+    % Store result for the final plot
+    results_backstepping(index,  :) = q;
+    index = index + 1;
+
+end
+
+%% Plot computed torque results
+
+figure
+for j=1:num_of_joints
+    subplot(4,2,j);
+    plot(t,results_backstepping(:,j))
+    hold on
+    plot (t,q_des(j,1:length(t)))
+%     hold on
+%     plot(t,results_computed_torque(:,j))
+    grid;
+    legend ('Backstepping Results','Desired angle')
+end

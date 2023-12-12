@@ -1,4 +1,3 @@
-
 clc
 addpath('../');
 
@@ -22,22 +21,28 @@ ddq = [0, 0, 0, 0, 0, 0, 0];
 qi=[0,0,0,0,0,0,0];
 
 % Gain matrix
-Kp = 6*diag([1 1 1 1 1 1 1]);
-Kv = 1*diag([1 1 1 1 1 1 1]);
-Ki = 0*diag ([1 2 1 2 1 2 2]);
+Kp = 10*diag([5 5 10 5 15 15 300]);
+Kv = 1*diag([8 5 10 8 15 15 200]);
+
+% Kp = 100*diag([5 5 10 5 15 15 300]);
+% Kv = 1*diag([8 5 10 8 15 15 200]);
 
 % References of position, velocity and acceleration of the joints 
-q_des = [pi/3, 0, pi/3, pi/3, pi/6, 0 , 0];
+q_des = [pi/3, 0, pi/3, pi/3, pi/6, 0, 0];
+%q_des = [0, -pi/4, 0, -3*pi/4, 0, pi/2, pi/4];
 dq_des = [0, 0, 0, 0, 0, 0, 0];
+ddq_des = [0, 0, 0, 0, 0, 0, 0];
 qi_des=[0, 0, 0, 0, 0, 0, 0];
 result = q;
 index = 1;
 err_old = q_des-q;
 err = q_des-q;
 ierr = [0 0 0 0 0 0 0];
-
 %%
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Computed Torque               %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 for i=1:length(t)
 
@@ -45,7 +50,7 @@ for i=1:length(t)
     err_old=err;
     err = q_des - q;
     derr = dq_des - dq;
-    % ierr=ierr+(err+err_old)*delta_t/2;
+    ierr=ierr+(err+err_old)*delta_t/2;
 
     %Get dynamic matrices
     F = get_FrictionTorque(dq);
@@ -53,14 +58,13 @@ for i=1:length(t)
     C = get_CoriolisVector(q,dq);
     M = get_MassMatrix(q);
 
-    % PD Controller
-    % tau = ( Kv*(derr') + Kp*(err') +Ki*(ierr)')';
-    tau = ( Kv*(derr') + Kp*(err'))';
+    % Computed Torque Controller
+    tau = (M*(ddq_des' + Kv*(derr') + Kp*(err')) + C + G )';
+
     
     % Robot joint accelerations
     ddq_old = ddq;
-    ddq = (pinv(M)*(tau - C'- G')')'; % with robot gravity
-    %ddq = (pinv(M)*(tau - C')')';       % without robot gravity
+    ddq = (pinv(M)*(tau - C'- G'-F')')';
         
     % Tustin integration
     dq_old = dq;
@@ -81,13 +85,9 @@ ref_0 = zeros(1,index-1);
 ref_1 = ones(1, index-1);
 refjoint=[pi/3*ref_1;ref_0;pi/3*ref_1;pi/3*ref_1;pi/6*ref_1; ref_0;ref_0];
 
-log_results = [];
-log_results.result_PD = result;
-log_results.num_joints = num_of_joints;
-log_results.t = t;
-log_results.ref_joint = refjoint;
+load('results');
+log_results.result_CT = result;
 save('results', 'log_results');
-
 % %%
 % figure
 % for j=1:num_of_joints
@@ -95,9 +95,11 @@ save('results', 'log_results');
 %     plot(t(1:18000),result(1:18000,j))
 %     hold on
 %     plot (t(1:18000),refjoint(j,1:18000))
-% 
+% %     hold on
+% %     plot (t(1:5000),results_with_correct_mass(1:5000,j))
 %     xlabel('time [s]');
 %     ylabeltext = sprintf('_%i [rad]',j);
 %     ylabel(['Joint position' ylabeltext]);
+%     legend( 'Noise added','Reference')
 %     grid;
 % end

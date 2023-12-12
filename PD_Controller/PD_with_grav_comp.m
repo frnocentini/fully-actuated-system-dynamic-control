@@ -1,5 +1,4 @@
-clear all
-close all
+
 clc
 addpath('../');
 
@@ -82,17 +81,20 @@ ref_0 = zeros(1,index-1);
 ref_1 = ones(1, index-1);
 refjoint=[pi/3*ref_1;ref_0;pi/3*ref_1;pi/3*ref_1;pi/6*ref_1; ref_0;ref_0];
 
+load('results');
+log_results.result_PD_g  = result;
+save('results', 'log_results');
 
 %%
-figure
-for j=1:num_of_joints
-    subplot(4,2,j);
-    plot(t(1:18000),result(1:18000,j))
-    hold on
-    plot (t(1:18000),refjoint(j,1:18000))
-
-    xlabel('time [s]');
-    ylabeltext = sprintf('_%i [rad]',j);
-    ylabel(['Joint position' ylabeltext]);
-    grid;
-end
+% figure
+% for j=1:num_of_joints
+%     subplot(4,2,j);
+%     plot(t(1:18000),result(1:18000,j))
+%     hold on
+%     plot (t(1:18000),refjoint(j,1:18000))
+% 
+%     xlabel('time [s]');
+%     ylabeltext = sprintf('_%i [rad]',j);
+%     ylabel(['Joint position' ylabeltext]);
+%     grid;
+% end
