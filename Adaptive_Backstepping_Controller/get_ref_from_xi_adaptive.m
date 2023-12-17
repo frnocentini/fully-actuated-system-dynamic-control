@@ -1,4 +1,4 @@
-function [q] = generate_trajectory(xi,q0, PANDA)
+function [q] = generate_trajectory(xi,q0,PANDA)
 %GENERATE_TRAJECTORY Summary of this function goes here
 
 %   Detailed explanation goes here

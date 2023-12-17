@@ -3,6 +3,8 @@ clear all
 close all
 clc
 
+addpath('../../rvctools')
+
 % Load symbolic robot model, dynamics matrices and regressor multiplied by
 % parameter vector
 load("matrices.mat")
@@ -11,36 +13,55 @@ M_sym = matrices.M;
 C_sym = matrices.C;
 G_sym = matrices.G;
 Y_pi = matrices.Y_pi;
+Y_sym = matrices.Y;
 
-syms m6 m7
-syms r6x r6y r6z
-syms r7x r7y r7z
-syms mr6x mr6y mr6z 
-syms mr7x mr7y mr7z
+% syms m6 m7
+% syms r6x r6y r6z
+% syms r7x r7y r7z
+% syms mr6x mr6y mr6z 
+% syms mr7x mr7y mr7z
+% syms q2 q3 q4 q5 q6 q7
+syms m4 m5
+syms q1 q2 q3 q4 q5
+syms dq1 dq2 dq3 dq4 dq5
+syms ddq1 ddq2 ddq3 ddq4 ddq5
+% syms r4x r4y r4z 
+% syms r5x r5y r5z
+% syms mr4x mr4y mr4z 
+% syms mr5x mr5y mr5z
 
 M_sym = expand(M_sym);
-M_sym = subs(M_sym,[m6*r6x m6*r6y m6*r6z m7*r7x m7*r7y m7*r7z],...
-    [mr6x mr6y mr6z mr7x mr7y mr7z]);
+% M_sym = subs(M_sym,[m6*r6x m6*r6y m6*r6z m7*r7x m7*r7y m7*r7z],...
+    % [mr6x mr6y mr6z mr7x mr7y mr7z]);
+% M_sym = subs(M_sym,[m4*r4x m4*r4y m4*r4z m5*r5x m5*r5y m5*r5z],...
+%     [mr4x mr4y mr4z mr5x mr5y mr5z]);
 G_sym = expand(G_sym);
-G_sym = subs(G_sym,[m6*r6x m6*r6y m6*r6z m7*r7x m7*r7y m7*r7z],...
-    [mr6x mr6y mr6z mr7x mr7y mr7z]);
+% G_sym = subs(G_sym,[m6*r6x m6*r6y m6*r6z m7*r7x m7*r7y m7*r7z],...
+%     [mr6x mr6y mr6z mr7x mr7y mr7z]);
+% G_sym = subs(G_sym,[m4*r4x m4*r4y m4*r4z m5*r5x m5*r5y m5*r5z],...
+%     [mr4x mr4y mr4z mr5x mr5y mr5z]);
 C_sym = expand(C_sym);
-C_sym = subs(C_sym,[m6*r6x m6*r6y m6*r6z m7*r7x m7*r7y m7*r7z],...
-    [mr6x mr6y mr6z mr7x mr7y mr7z]);
-vars = [m6 mr6x mr6y mr6z m7 mr7x mr7y mr7z];
-matlabFunction(M_sym,'File','MTilde','Vars',{vars});
-matlabFunction(G_sym,'File','GTilde','Vars',{vars});
-matlabFunction(C_sym,'File','CTilde','Vars',{vars});
+% C_sym = subs(C_sym,[m6*r6x m6*r6y m6*r6z m7*r7x m7*r7y m7*r7z],...
+%     [mr6x mr6y mr6z mr7x mr7y mr7z]);
+% C_sym = subs(C_sym,[m4*r4x m4*r4y m4*r4z m5*r5x m5*r5y m5*r5z],...
+%     [mr4x mr4y mr4z mr5x mr5y mr5z]);
+% vars = [m6 mr6x mr6y mr6z m7 mr7x mr7y mr7z];
+vars = [m4 m5];
+matlabFunction(M_sym,'File','MTilde','Vars',{[q2 q3 q4 vars]});
+matlabFunction(G_sym,'File','GTilde','Vars',{[q2 q3 q4 vars]});
+matlabFunction(C_sym,'File','CTilde','Vars',{[dq1,dq2,dq3,dq4,dq5,q2,q3,q4,vars]});
 
 % Load real robot model
-addpath('../')
-load('robot.mat')
+% addpath('../')
+% load('robot.mat')
+load("real_robot.mat")
+
 
 %% Create trajectory
 generate_trajectory_adaptive
 
-num_of_joints = 7;  % number of joints
-num_estim_param = 8;  % number of symboli parameters
+num_of_joints = 5;  % number of joints
+num_estim_param = 2;  % number of symbolic parameters
 
 %% Dynamic parameters vector initialization
 q = zeros(length(t),num_of_joints); 
@@ -48,28 +69,27 @@ q_dot = zeros(length(t),num_of_joints);
 tau = zeros(length(t),num_of_joints); 
 piArray = zeros(length(t),num_estim_param); 
 
-q0 = [0 pi/3 0 pi/6 0 0 0]+[0 pi/3 0 pi/6 0 0 0]*0.01; 
+% q0 = [0 pi/3 0 pi/6 0]+[0 pi/3 0 pi/6 0]*0.01;
+q0 = [0 0 0 0 0];
 q(1,:) = q0; 
-q_dot0 = [0 0 0 0 0 0 0];
+q_dot0 = [0 0 0 0 0];
 q_dot(1,:) = q_dot0; 
 
 qr_dot = zeros(length(t),num_of_joints);
 qr_ddot = zeros(length(t),num_of_joints); 
 
-M_real = get_MassMatrix(q0);
-C_real = get_CoriolisMatrix(q0,q_dot0);
-G_real = get_GravityVector(q0);
+M_real = panda.inertia(q0);
+C_real = panda.coriolis(q0,q_dot0);
+G_real = panda.gravload(q0);
 
 pi0 = zeros(1,num_estim_param); 
 % for j = 1:8
 %     pi0((j-1)*10+1:j*10) = [robot.links(j).m robot.links(j).m*robot.links(j).r ...
 %         robot.links(j).I(1,1) 0 0 robot.links(j).I(2,2) 0 robot.links(j).I(3,3)];
 % end
-d = 1;  % add 1% of disturbance
-pi0(1,1) = PANDA.links(6).m * (1 + d/100);
-pi0(1,2:4) = pi0(1,1) .* PANDA.links(6).r;
-pi0(1,5) = PANDA.links(7).m * (1 + d/100);
-pi0(1,6:8) = pi0(1,5) .* PANDA.links(7).r;
+d = 2.5;  % add 1% of disturbance
+pi0(1,1) = panda.links(4).m * (1 + d/100);
+pi0(1,2) = panda.links(5).m * (1 + d/100);
  
 piArray(1,:) = pi0; 
 
@@ -78,15 +98,16 @@ Kp = 1*diag([200 200 200 20 10]);
 Kv = 0.1*diag([200 200 200 10 1]); 
 Kd = 0.1*diag([200 200 200 20 1]);
 
-R = diag(repmat([1e1 repmat(1e3,1,3) 1e2 1e7 1e7 1e2 1e7 1e2],1,num_of_joints)); 
+% R = diag(repmat([1e1 repmat(1e3,1,3) 1e2 1e7 1e7 1e2 1e7 1e2],1,num_of_joints)); 
+R = diag([10 10]);
 P = 0.01*eye(10);
 lambda = diag([200, 200, 200, 200, 200])*0.03;
 
-MTilde = zeros(7,7);
-CTilde = zeros(7,7);
-GTilde = zeros(7,1);
+Mtilde = zeros(5,5);
+Ctilde = zeros(5,5);
+Gtilde = zeros(5,1);
 
-Y = zeros(7,8);
+Y = zeros(num_of_joints,num_estim_param);
 
 qd_dot=dq_des';
 qd_ddot=ddq_des';
@@ -116,21 +137,31 @@ for i = 2:length(t)
     % 
     % Mtilde = robot.inertia(q(i-1,:)); 
     % Ctilde = robot.coriolis(q(i-1,:),q_dot(i-1,:)); 
-    % Gtilde = robot.gravload(q(i-1,:)); 
-    for i=1:7
-        Y_sub = Y_pi;
-        Y_sub = subs(Y_sub,[r6x r6y r6z r7x r7y r7z],[0 0 0 0 0 0]);
-        Y(i,1) = jacobian(Y_sub(i,1),m6);
-        Y_sub(i,1) = jacobian(Y_pi(i,1),m6);
-        Y(i,2) = jacobian(Y_sub(i,1),r6x);
-        Y(i,3) = jacobian(Y_sub(i,1),r6y);
-        Y(i,4) = jacobian(Y_sub(i,1),r6z);
-        Y(i,5) = jacobian(Y_sub(i,1),m7);
-        Y_sub(i,5) = jacobian(Y_pi(i,1),m7);
-        Y(i,6) = jacobian(Y_sub(i,5),r7x);
-        Y(i,7) = jacobian(Y_sub(i,5),r7y);
-        Y(i,8) = jacobian(Y_sub(i,5),r7z);
-    end
+    % Gtilde = robot.gravload(q(i-1,:));
+    % [q2 q3 q4 m4 m5]
+    % [dq1,dq2,dq3,dq4,dq5,q2,q3,q4,vars]
+    subs_param = [q(i-1,2) q(i-1,3) q(i-1,4) piArray(i-1,1) piArray(i-1,2)];
+    Mtilde = MTilde(subs_param);
+    Gtilde = GTilde(subs_param);
+    subs_param = [q_dot(i-1,1) q_dot(i-1,2) q_dot(i-1,3) q_dot(i-1,4) q_dot(i-1,5)...
+        q(i-1,2) q(i-1,3) q(i-1,4) piArray(i-1,1) piArray(i-1,2)];
+    Ctilde = CTilde(subs_param);
+
+
+    % for i=1:7
+    %     Y_sub = Y_pi;
+    %     Y_sub = subs(Y_sub,[r6x r6y r6z r7x r7y r7z],[0 0 0 0 0 0]);
+    %     Y(i,1) = jacobian(Y_sub(i,1),m6);
+    %     Y_sub(i,1) = jacobian(Y_pi(i,1),m6);
+    %     Y(i,2) = jacobian(Y_sub(i,1),r6x);
+    %     Y(i,3) = jacobian(Y_sub(i,1),r6y);
+    %     Y(i,4) = jacobian(Y_sub(i,1),r6z);
+    %     Y(i,5) = jacobian(Y_sub(i,1),m7);
+    %     Y_sub(i,5) = jacobian(Y_pi(i,1),m7);
+    %     Y(i,6) = jacobian(Y_sub(i,5),r7x);
+    %     Y(i,7) = jacobian(Y_sub(i,5),r7y);
+    %     Y(i,8) = jacobian(Y_sub(i,5),r7z);
+    % end
 
 
     
@@ -147,9 +178,9 @@ for i = 2:length(t)
 %     tau(i,:) = qr_ddot(i-1,:)*Mtilde' + qr_dot(i-1,:)*Ctilde' + Gtilde + s*Kd' + e*Kp'; 
 
     
-    M = PANDA.inertia(q(i-1,:)); 
-    C = PANDA.coriolis(q(i-1,:),q_dot(i-1,:)); 
-    G = PANDA.gravload(q(i-1,:)); 
+    M = panda.inertia(q(i-1,:)); 
+    C = panda.coriolis(q(i-1,:),q_dot(i-1,:)); 
+    G = panda.gravload(q(i-1,:)); 
     
     q_ddot = (tau(i,:) - q_dot(i-1,:)*C' - G) * (M')^(-1); 
     
@@ -157,7 +188,7 @@ for i = 2:length(t)
     q(i,:) = q(i-1,:) + delta_t*q_dot(i,:); 
     
     
-    q1 = q(i,1); q2 = q(i,2); q3 = q(i,3); q4 = q(i,4); q5 = q(i,5);
+    % q1 = q(i,1); q2 = q(i,2); q3 = q(i,3); q4 = q(i,4); q5 = q(i,5);
 
     q1_dot = q_dot(i,1);
     q2_dot = q_dot(i,2);
@@ -179,9 +210,10 @@ for i = 2:length(t)
 
     g = 9.81;
     
-    disp('Calcolo il regressore')
-    regressor2
-    % regressor_panda_5dof;
+    % disp('Calcolo il regressore')
+    Y = subs(Y_sym,[q2 q3 q4 q5],[q(i-1,2) q(i-1,3) q(i-1,4) q(i-1,5)]);
+    Y = subs(Y,[dq1 dq2 dq3 dq4 dq5],[q_dot(i-1,1) q_dot(i-1,2) q_dot(i-1,3) q_dot(i-1,4) q_dot(i-1,5)]);
+    Y = subs(Y,[ddq1 ddq2 ddq3 ddq4 ddq5],[q_ddot(1,1) q_ddot(1,2) q_ddot(1,3) q_ddot(1,4) q_ddot(1,5)]);
 
     
 % COMPUTED TORQUE DYNAMICAL PARAMETERS DYNAMICS
@@ -211,7 +243,7 @@ return
 
 
 %% PLOT RESULTS
-figure
+figure(5)
 for j=1:num_of_joints
     subplot(4,2,j);
     plot(t(1:10001),q(1:10001,j))
@@ -224,22 +256,25 @@ end
 
 
 %% Plot Dynamics parameter
-figure
-subplot(5,1,1);
+figure(6)
+subplot(2,1,1);
 plot(t(1:10001),piArray(1:10001,1))
 legend ('Mass Link 1')
 hold on
-subplot(5,1,2);
-plot(t(1:10001),piArray(1:10001,11))
+subplot(2,1,2);
+plot(t(1:10001),piArray(1:10001,2))
 legend ('Mass Link 2')
-subplot(5,1,3);
-plot(t(1:10001),piArray(1:10001,21))
-legend ('Mass Link 3')
-subplot(5,1,4);
-plot(t(1:10001),piArray(1:10001,31))
-legend ('Mass Link 4')
-subplot(5,1,5);
-plot(t(1:10001),piArray(1:10001,41))
-legend ('Mass Link 5')
 grid;
+
+%% Plot error
+figure(7)
+for j=1:num_of_joints
+    subplot(4,2,j);
+    plot(t(1:10001),e(1:10001,j))
+%     legend ()
+    hold on
+    plot (t,q_des(j,1:length(t)))
+    legend ('Computed Torque','Desired angle')
+    grid;
+end
 

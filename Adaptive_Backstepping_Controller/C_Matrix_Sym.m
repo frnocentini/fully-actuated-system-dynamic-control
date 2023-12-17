@@ -1,21 +1,23 @@
 function C = C_Matrix_Sym(M,q,dq)
     sympref('FloatingPointOutput',true);
 
-    C = sym('C',[7,7]);
-    Gamma = sym('Gamma',[7,7,7]); % index order: j,k,i
+    % C = sym('C',[5,5]);
+    C = zeros(5,5);
+    C = symmatrix(C);
 
-    num_joints = 7;
+    Gamma = sym('Gamma',[5,5,5]); % index order: i,j,k
 
-    for i=1:num_joints
+    num_joints = 5;
+
+    for k=1:num_joints
         for j=1:num_joints
-            for k=1:num_joints
-                Gamma(j,k,i) = 1/2 * (jacobian(M(i,j),q(k)) + jacobian(M(i,k),q(j)) - jacobian(M(j,k),q(i)));
-                
+            for i=1:num_joints
+                Gamma(i,j,k) = 1/2 * (jacobian(M(i,j),q(k)) + jacobian(M(i,k),q(j)) - jacobian(M(j,k),q(i)));
+                C(i,j) = C(i,j) + Gamma(i,j,k)*dq(k);
             end
         end
 
-        C(i,:) = dq*Gamma(:,:,i);
+        % C(i,:) = dq*Gamma(:,:,i);
     end
 
-
-
+    

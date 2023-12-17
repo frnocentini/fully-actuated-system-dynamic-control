@@ -25,7 +25,7 @@ timeSpan= 10;
 
 t = t_in:delta_t:t_fin;
 
-num_of_joints = 7;
+num_of_joints = 5;
 
 Q = zeros(num_of_joints,length(t));
 dQ = zeros(num_of_joints,length(t));
@@ -38,10 +38,11 @@ switch choice
                     
     case 1 % Circonferenza
         
-        q0 = [0 pi/3 0 pi/6 0 0 0];
-        q_dot0 = [0 0 0 0 0 0 0];
+        % q0 = [0 pi/3 0 pi/6 0];
+        q0 = [0 0 0 0 0];
+        q_dot0 = [0 0 0 0 0];
         
-        pos0 = robot.fkine(q0).t;
+        pos0 = panda.fkine(q0).t;
 
         radius = 0.1; % raggio dell'elica [m]
         center = pos0 - [radius;0;0];
@@ -64,22 +65,23 @@ switch choice
         xi = [x; y; z; theta; phi; psi]; % twist
         
         
-        q_des= get_ref_from_xi_adaptive(xi,q0,robot);
+        q_des= get_ref_from_xi_adaptive(xi,q0,panda);
         dq_des=gradient(q_des)*1000;
         ddq_des=gradient(dq_des)*1000;
         
         figure
-        robot.plotopt = {'workspace',[-0.75,0.75,-0.75,0.75,0,1]};
-        robot.plot(q0,'floorlevel',0,'linkcolor',orange,'jointcolor',grey)
+        panda.plotopt = {'workspace',[-0.75,0.75,-0.75,0.75,0,1]};
+        panda.plot(q0,'floorlevel',0,'linkcolor',orange,'jointcolor',grey)
         hold
         plot3(x,y,z,'k','Linewidth',1.5)
         
     case 2 % Traiettoria elicoidale
         
-        q0 = [0 pi/3 0 pi/6 0 0 0];
-        q_dot0 = [0 0 0 0 0 0 0];
+        % q0 = [0 pi/3 0 pi/6 0];
+        q0 = [0 0 0 0 0];
+        q_dot0 = [0 0 0 0 0];
 
-        pos0 = robot.fkine(q0).t;
+        pos0 = panda.fkine(q0).t;
        
         shift = 0.1; % passo dell'elica [m] 
         radius = 0.1; % raggio dell'elica [m]
@@ -96,7 +98,7 @@ switch choice
         xi = [ x ;y; z; theta ;phi; psi]; % twist
         
         
-        q_des= get_ref_from_xi_adaptive(xi,q0,robot);
+        q_des= get_ref_from_xi_adaptive(xi,q0,panda);
         dq_des=gradient(q_des)*1000;
         ddq_des=gradient(dq_des)*1000;
 
@@ -107,10 +109,11 @@ switch choice
 
  case 3 % Traiettoria lissajous
         
-        q0 = [0 pi/3 0 pi/6 0 0 0];
-        q_dot0 = [0 0 0 0 0 0 0];
+        % q0 = [0 pi/3 0 pi/6 0];
+        q0 = [0 0 0 0 0];
+        q_dot0 = [0 0 0 0 0];
 
-        pos0 = robot.fkine(q0).t;
+        pos0 = panda.fkine(q0).t;
        
         A = 0.1; % ampiezza [m] 
         a = 1; % frequenza [rad/s]
@@ -130,7 +133,7 @@ switch choice
         xi = [ x ;y; z; theta ;phi; psi]; % twist
         
         
-        q_des= get_ref_from_xi_adaptive(xi,q0,robot);
+        q_des= get_ref_from_xi_adaptive(xi,q0,panda);
         dq_des=gradient(q_des)*1000;
         ddq_des=gradient(dq_des)*1000;
 
@@ -148,11 +151,11 @@ figure
 plot3(x,y,z,'r','Linewidth',1.5)
 
 grid on
-robot.plotopt = {'workspace',[-0.75,0.75,-0.75,0.75,0,1]};
+panda.plotopt = {'workspace',[-0.75,0.75,-0.75,0.75,0,1]};
 hold on
 for i=1:100:length(q_des)
     
-    robot.plot(transpose(q_des(:,i)),'floorlevel',0,'fps',1000,'trail','-k','linkcolor',orange,'jointcolor',grey)
+    panda.plot(transpose(q_des(:,i)),'floorlevel',0,'fps',1000,'trail','-k','linkcolor',orange,'jointcolor',grey)
 
 end
 
