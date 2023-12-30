@@ -5,30 +5,21 @@ clc
 
 addpath('../../rvctools')
 
-% Load symbolic robot model, dynamics matrices and regressor multiplied by
-% parameter vector
+% Load symbolic robot model, dynamics matrices, regressor multiplied by
+% parameter vector and regressor
 load("matrices.mat")
-robot = matrices.robot;
-M_sym = matrices.M;
-C_sym = matrices.C;
-G_sym = matrices.G;
-Y_pi = matrices.Y_pi;
-Y_sym = matrices.Y;
+robot = matrices.robot; % symbolic model of Panda 5DoF
+M_sym = matrices.M;     % symbolic mass matrix 
+C_sym = matrices.C;     % symbolic coriolis matrix
+G_sym = matrices.G;     % symbolic gravity vector
+Y_pi = matrices.Y_pi;   % symbolic regressor multiplied by parameter vector
+Y_sym = matrices.Y;     % symbolic regressor
 
-% syms m6 m7
-% syms r6x r6y r6z
-% syms r7x r7y r7z
-% syms mr6x mr6y mr6z 
-% syms mr7x mr7y mr7z
-% syms q2 q3 q4 q5 q6 q7
-syms m4 m5
+% Symbolic parameters and variables
+syms m1 m2 m3 m4 m5
 syms q1 q2 q3 q4 q5
 syms dq1 dq2 dq3 dq4 dq5
 syms ddq1 ddq2 ddq3 ddq4 ddq5
-% syms r4x r4y r4z 
-% syms r5x r5y r5z
-% syms mr4x mr4y mr4z 
-% syms mr5x mr5y mr5z
 
 M_sym = expand(M_sym);
 % M_sym = subs(M_sym,[m6*r6x m6*r6y m6*r6z m7*r7x m7*r7y m7*r7z],...
@@ -46,14 +37,12 @@ C_sym = expand(C_sym);
 % C_sym = subs(C_sym,[m4*r4x m4*r4y m4*r4z m5*r5x m5*r5y m5*r5z],...
 %     [mr4x mr4y mr4z mr5x mr5y mr5z]);
 % vars = [m6 mr6x mr6y mr6z m7 mr7x mr7y mr7z];
-vars = [m4 m5];
+vars = [m1 m2 m3 m4 m5];
 matlabFunction(M_sym,'File','MTilde','Vars',{[q2 q3 q4 vars]});
 matlabFunction(G_sym,'File','GTilde','Vars',{[q2 q3 q4 vars]});
 matlabFunction(C_sym,'File','CTilde','Vars',{[dq1,dq2,dq3,dq4,dq5,q2,q3,q4,vars]});
 
 % Load real robot model
-% addpath('../')
-% load('robot.mat')
 load("real_robot.mat")
 
 
@@ -61,16 +50,22 @@ load("real_robot.mat")
 generate_trajectory_adaptive
 
 num_of_joints = 5;  % number of joints
-num_estim_param = 2;  % number of symbolic parameters
+num_estim_param = 5;  % number of symbolic parameters
+
 
 %% Dynamic parameters vector initialization
+% Joint variables
 q = zeros(length(t),num_of_joints); 
 q_dot = zeros(length(t),num_of_joints); 
+% Error vector
+e = zeros(length(t),num_of_joints);
+e_dot = zeros(length(t),num_of_joints);
+% Torque
 tau = zeros(length(t),num_of_joints); 
+% Estimated parameters vector
 piArray = zeros(length(t),num_estim_param); 
 
-% q0 = [0 pi/3 0 pi/6 0]+[0 pi/3 0 pi/6 0]*0.01;
-q0 = [0 0 0 0 0];
+q0 = [0 pi/2 pi/2 pi/2 0 ];
 q(1,:) = q0; 
 q_dot0 = [0 0 0 0 0];
 q_dot(1,:) = q_dot0; 
@@ -83,23 +78,22 @@ C_real = panda.coriolis(q0,q_dot0);
 G_real = panda.gravload(q0);
 
 pi0 = zeros(1,num_estim_param); 
-% for j = 1:8
-%     pi0((j-1)*10+1:j*10) = [robot.links(j).m robot.links(j).m*robot.links(j).r ...
-%         robot.links(j).I(1,1) 0 0 robot.links(j).I(2,2) 0 robot.links(j).I(3,3)];
-% end
-d = 2.5;  % add 1% of disturbance
-pi0(1,1) = panda.links(4).m * (1 + d/100);
-pi0(1,2) = panda.links(5).m * (1 + d/100);
+d = 2.5;  % add 2.5% of disturbance to the estimated parameters 
+pi0(1,1) = panda.links(1).m * (1 + d/100);
+pi0(1,2) = panda.links(2).m * (1 + d/100);
+pi0(1,3) = panda.links(3).m * (1 + d/100);
+pi0(1,4) = panda.links(4).m * (1 + d/100);
+pi0(1,5) = panda.links(5).m * (1 + d/100);
  
 piArray(1,:) = pi0; 
+
 
 %% CONTROLLER
 Kp = 1*diag([200 200 200 20 10]);
 Kv = 0.1*diag([200 200 200 10 1]); 
 Kd = 0.1*diag([200 200 200 20 1]);
 
-% R = diag(repmat([1e1 repmat(1e3,1,3) 1e2 1e7 1e7 1e2 1e7 1e2],1,num_of_joints)); 
-R = diag([10 10]);
+R = diag([10 10 10 10 10]);
 P = 0.01*eye(10);
 lambda = diag([200, 200, 200, 200, 200])*0.03;
 
@@ -121,54 +115,27 @@ for i = 2:length(t)
         return
     end
     
-    e = qd(i-1,:) - q(i-1,:); 
-    e_dot = qd_dot(i-1,:) - q_dot(i-1,:); 
-    s = (e_dot + e*lambda);
+    e(i-1,:) = qd(i-1,:) - q(i-1,:); 
+    e_dot(i-1,:) = qd_dot(i-1,:) - q_dot(i-1,:); 
+    s = (e_dot(i-1,:) + e(i-1,:)*lambda);
     
-    qr_dot(i-1,:) = qd_dot(i-1,:) + e*lambda;
+    qr_dot(i-1,:) = qd_dot(i-1,:) + e(i-1,:)*lambda;
     if (i > 2)
         qr_ddot(i-1,:) = (qr_dot(i-1) - qr_dot(i-2)) / delta_t;
     end
     
     % Substitute estimated parameters
-    % for j = 1:num_of_joints 
-    %     robot.links(j).m = piArray(i-1,(j-1)*10+1); % elemento 1 di pi
-    % end
-    % 
-    % Mtilde = robot.inertia(q(i-1,:)); 
-    % Ctilde = robot.coriolis(q(i-1,:),q_dot(i-1,:)); 
-    % Gtilde = robot.gravload(q(i-1,:));
-    % [q2 q3 q4 m4 m5]
-    % [dq1,dq2,dq3,dq4,dq5,q2,q3,q4,vars]
-    subs_param = [q(i-1,2) q(i-1,3) q(i-1,4) piArray(i-1,1) piArray(i-1,2)];
+    subs_param = [q(i-1,2) q(i-1,3) q(i-1,4) piArray(i-1,1) piArray(i-1,2) piArray(i-1,3) piArray(i-1,4) piArray(i-1,5)];
     Mtilde = MTilde(subs_param);
     Gtilde = GTilde(subs_param);
     subs_param = [q_dot(i-1,1) q_dot(i-1,2) q_dot(i-1,3) q_dot(i-1,4) q_dot(i-1,5)...
-        q(i-1,2) q(i-1,3) q(i-1,4) piArray(i-1,1) piArray(i-1,2)];
+        q(i-1,2) q(i-1,3) q(i-1,4) piArray(i-1,1) piArray(i-1,2) piArray(i-1,3) piArray(i-1,4) piArray(i-1,5)];
     Ctilde = CTilde(subs_param);
 
-
-    % for i=1:7
-    %     Y_sub = Y_pi;
-    %     Y_sub = subs(Y_sub,[r6x r6y r6z r7x r7y r7z],[0 0 0 0 0 0]);
-    %     Y(i,1) = jacobian(Y_sub(i,1),m6);
-    %     Y_sub(i,1) = jacobian(Y_pi(i,1),m6);
-    %     Y(i,2) = jacobian(Y_sub(i,1),r6x);
-    %     Y(i,3) = jacobian(Y_sub(i,1),r6y);
-    %     Y(i,4) = jacobian(Y_sub(i,1),r6z);
-    %     Y(i,5) = jacobian(Y_sub(i,1),m7);
-    %     Y_sub(i,5) = jacobian(Y_pi(i,1),m7);
-    %     Y(i,6) = jacobian(Y_sub(i,5),r7x);
-    %     Y(i,7) = jacobian(Y_sub(i,5),r7y);
-    %     Y(i,8) = jacobian(Y_sub(i,5),r7z);
-    % end
-
-
     
-% ADAPTIVE COMPUTED TORQUE    
+    % ADAPTIVE COMPUTED TORQUE    
     tau(i,:) = qd_ddot(i-1,:)*Mtilde' + q_dot(i-1,:)*Ctilde'...
-        + Gtilde + e_dot*Kv' + e*Kp';
-%   
+        + Gtilde + e_dot(i-1,:)*Kv' + e(i-1,:)*Kp';  
 
 %  LI SLOTINE
 %         tau(i,:) = qr_ddot(i-1,:)*Mtilde'...
@@ -187,9 +154,6 @@ for i = 2:length(t)
     q_dot(i,:) = q_dot(i-1,:) + delta_t*q_ddot; 
     q(i,:) = q(i-1,:) + delta_t*q_dot(i,:); 
     
-    
-    % q1 = q(i,1); q2 = q(i,2); q3 = q(i,3); q4 = q(i,4); q5 = q(i,5);
-
     q1_dot = q_dot(i,1);
     q2_dot = q_dot(i,2);
     q3_dot = q_dot(i,3); 
@@ -210,24 +174,20 @@ for i = 2:length(t)
 
     g = 9.81;
     
-    % disp('Calcolo il regressore')
     Y = subs(Y_sym,[q2 q3 q4 q5],[q(i-1,2) q(i-1,3) q(i-1,4) q(i-1,5)]);
     Y = subs(Y,[dq1 dq2 dq3 dq4 dq5],[q_dot(i-1,1) q_dot(i-1,2) q_dot(i-1,3) q_dot(i-1,4) q_dot(i-1,5)]);
     Y = subs(Y,[ddq1 ddq2 ddq3 ddq4 ddq5],[q_ddot(1,1) q_ddot(1,2) q_ddot(1,3) q_ddot(1,4) q_ddot(1,5)]);
 
     
-% COMPUTED TORQUE DYNAMICAL PARAMETERS DYNAMICS
-    piArray_dot = ( R^(-1) * Y' * (Mtilde')^(-1) * [zeros(num_of_joints) eye(num_of_joints)] * P * [e e_dot]' )';
+    % COMPUTED TORQUE DYNAMICAL PARAMETERS DYNAMICS
+    piArray_dot = ( R^(-1) * Y' * (Mtilde')^(-1) * [zeros(num_of_joints) eye(num_of_joints)] * P * [e(i-1,:) e_dot(i-1,:)]' )';
 
     piArray(i,:) = piArray(i-1,:) + delta_t*piArray_dot; 
 
-% BACKSTEPPING DYNAMICAL PARAMETERS DYNAMICS
-
-% 
+    
+    % BACKSTEPPING DYNAMICAL PARAMETERS DYNAMICS 
 %     piArray_dot = (R^(-1) * Y' * s')';  
-% 
-%     piArray(i,:) = piArray(i-1,:) + delta_t*piArray_dot; 
-%         
+%     piArray(i,:) = piArray(i-1,:) + delta_t*piArray_dot;         
  
 
     if mod(i,100) == 0
@@ -255,7 +215,7 @@ for j=1:num_of_joints
 end
 
 
-%% Plot Dynamics parameter
+% Plot Dynamics parameter
 figure(6)
 subplot(2,1,1);
 plot(t(1:10001),piArray(1:10001,1))
@@ -266,15 +226,42 @@ plot(t(1:10001),piArray(1:10001,2))
 legend ('Mass Link 2')
 grid;
 
-%% Plot error
+% Plot error
 figure(7)
 for j=1:num_of_joints
     subplot(4,2,j);
     plot(t(1:10001),e(1:10001,j))
 %     legend ()
-    hold on
-    plot (t,q_des(j,1:length(t)))
-    legend ('Computed Torque','Desired angle')
+    % hold on
+    % plot (t,q_des(j,1:length(t)))
+    legend ('Joint error')
     grid;
 end
+
+%% Save data
+switch choice
+    case 1
+        dataset_C = [];
+        dataset_C.error = e;
+        dataset_C.q_computed = q;
+        dataset_C.q_desired = q_des;
+        dataset_C.estimated_params = piArray;
+        save('plot_data_Circumference','dataset_C');
+    case 2
+        dataset_H = [];
+        dataset_H.error = e;
+        dataset_H.q_computed = q;
+        dataset_H.q_desired = q_des;
+        dataset_H.estimated_params = piArray;
+        save('plot_data_Helix','dataset_H');
+    case 3
+        dataset_L = [];
+        dataset_L.error = e;
+        dataset_L.q_computed = q;
+        dataset_L.q_desired = q_des;
+        dataset_L.estimated_params = piArray;
+        save('plot_data_Lissajoux','dataset_L');
+end
+
+
 
