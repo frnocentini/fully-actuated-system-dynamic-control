@@ -26,12 +26,12 @@ l4 = 0;
 l5 = d5;
 
 % masses [m]
-m1 = 1; 
-m2 = 1;
-m3 = 1;
+% m1 = 1; 
+% m2 = 1;
+% m3 = 1;
 % m4 = 1;
 % m5 = 1;
-syms m4 m5
+syms m4 m5 m1 m2 m3
 
 panda_sym.links(1).m = m1;
 panda_sym.links(2).m = m2;
@@ -159,27 +159,42 @@ dq = sym('dq',[1,5]);
 ddq = sym('ddq',[1,5]);
 
 % Mass matrix
+disp('Computing inertia matrix...')
 M = robot.inertia(q);
+disp('Inertia matrix computed!')
 % Gravity matrix
+disp('Computing gravity matrix...')
 G = robot.gravload(q);
+disp('Gravity matrix computed!')
 % Coriolis matrix
+disp('Computing coriolis matrix...')
 C = symmatrix2sym(C_Matrix_Sym(M,q,dq));
+disp('Coriolis matrix computed!')
 
 % Regressor*pi (pi is the estimated parameters vector)
 Y_pi = M * ddq' + C * dq' + G';
 
 % Regressor
-Y = sym('Y',[5,2]);
-Y(1,1) = jacobian(Y_pi(1,1),m4);
-Y(1,2) = jacobian(Y_pi(1,1),m5);
-Y(2,1) = jacobian(Y_pi(2,1),m4);
-Y(2,2) = jacobian(Y_pi(2,1),m5);
-Y(3,1) = jacobian(Y_pi(3,1),m4);
-Y(3,2) = jacobian(Y_pi(3,1),m5);
-Y(4,1) = jacobian(Y_pi(4,1),m4);
-Y(4,2) = jacobian(Y_pi(4,1),m5);
-Y(5,1) = jacobian(Y_pi(5,1),m4);
-Y(5,2) = jacobian(Y_pi(5,1),m5);
+disp('Computing regressor...')
+Y = sym('Y',[5,5]);
+masses = [m1,m2,m3,m4,m5];
+for i = 1 : 5
+    for j = 1 : 5
+        Y(i,j) = jacobian(Y_pi(i,1),masses(i));
+    end
+end
+disp('Regressor computed!')
+% Y(1,1) = jacobian(Y_pi(1,1),m1);
+% Y(1,2) = jacobian(Y_pi(1,1),m2);
+% Y(2,1) = jacobian(Y_pi(2,1),m1);
+% Y(2,2) = jacobian(Y_pi(2,1),m2);
+% Y(3,1) = jacobian(Y_pi(3,1),m1);
+% Y(3,2) = jacobian(Y_pi(3,1),m2);
+% Y(4,1) = jacobian(Y_pi(4,1),m1);
+% Y(4,2) = jacobian(Y_pi(4,1),m2);
+% Y(5,1) = jacobian(Y_pi(5,1),m1);
+% Y(5,2) = jacobian(Y_pi(5,1),m2);
+
 
 %% Save dataset
 matrices = [];
