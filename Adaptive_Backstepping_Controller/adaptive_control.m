@@ -3,7 +3,7 @@ clear all
 close all
 clc
 
-addpath('../../rvctools')
+addpath('../../../../../Downloads/RVC2-copy/RVC2-copy/rvctools/')
 
 % Load symbolic robot model, dynamics matrices, regressor multiplied by
 % parameter vector and regressor
@@ -78,7 +78,7 @@ C_real = panda.coriolis(q0,q_dot0);
 G_real = panda.gravload(q0);
 
 pi0 = zeros(1,num_estim_param); 
-d = 2.5;  % add 2.5% of disturbance to the estimated parameters 
+d = 10;  % add 2.5% of disturbance to the estimated parameters 
 pi0(1,1) = panda.links(1).m * (1 + d/100);
 pi0(1,2) = panda.links(2).m * (1 + d/100);
 pi0(1,3) = panda.links(3).m * (1 + d/100);
@@ -134,15 +134,15 @@ for i = 2:length(t)
 
     
     % ADAPTIVE COMPUTED TORQUE    
-    tau(i,:) = qd_ddot(i-1,:)*Mtilde' + q_dot(i-1,:)*Ctilde'...
-        + Gtilde + e_dot(i-1,:)*Kv' + e(i-1,:)*Kp';  
+    % tau(i,:) = qd_ddot(i-1,:)*Mtilde' + q_dot(i-1,:)*Ctilde'...
+    %     + Gtilde + e_dot(i-1,:)*Kv' + e(i-1,:)*Kp';  
 
 %  LI SLOTINE
 %         tau(i,:) = qr_ddot(i-1,:)*Mtilde'...
 %             + qr_dot(i-1,:)*Ctilde' + Gtilde + s*Kd'; 
 
 %  ADAPTIVE BACKSTEPPING
-%     tau(i,:) = qr_ddot(i-1,:)*Mtilde' + qr_dot(i-1,:)*Ctilde' + Gtilde + s*Kd' + e*Kp'; 
+    tau(i,:) = qr_ddot(i-1,:)*Mtilde' + qr_dot(i-1,:)*Ctilde' + Gtilde + s*Kd' + e(i-1,:)*Kp'; 
 
     
     M = panda.inertia(q(i-1,:)); 
@@ -180,14 +180,14 @@ for i = 2:length(t)
 
     
     % COMPUTED TORQUE DYNAMICAL PARAMETERS DYNAMICS
-    piArray_dot = ( R^(-1) * Y' * (Mtilde')^(-1) * [zeros(num_of_joints) eye(num_of_joints)] * P * [e(i-1,:) e_dot(i-1,:)]' )';
-
-    piArray(i,:) = piArray(i-1,:) + delta_t*piArray_dot; 
+    % piArray_dot = ( R^(-1) * Y' * (Mtilde')^(-1) * [zeros(num_of_joints) eye(num_of_joints)] * P * [e(i-1,:) e_dot(i-1,:)]' )';
+    % 
+    % piArray(i,:) = piArray(i-1,:) + delta_t*piArray_dot; 
 
     
-    % BACKSTEPPING DYNAMICAL PARAMETERS DYNAMICS 
-%     piArray_dot = (R^(-1) * Y' * s')';  
-%     piArray(i,:) = piArray(i-1,:) + delta_t*piArray_dot;         
+    %BACKSTEPPING DYNAMICAL PARAMETERS DYNAMICS 
+    piArray_dot = (R^(-1) * Y' * s')';  
+    piArray(i,:) = piArray(i-1,:) + delta_t*piArray_dot;         
  
 
     if mod(i,100) == 0
