@@ -151,12 +151,11 @@ cg.gengravload();
 addpath PANDA_sym
 robot = PANDA_sym();
 
-% syms q1 q2 q3 q4 q5 q6 q7
-% q = [q1 q2 q3 q4 q5 q6 q7];
-% q = [0.1 0.3 0.1 0 0.1 0 0];
+% Symbolic variables
 q = sym('q',[1,5]);
 dq = sym('dq',[1,5]);
 ddq = sym('ddq',[1,5]);
+syms m1 m2 m3 m4 m5
 
 % Mass matrix
 disp('Computing inertia matrix...')
@@ -198,8 +197,6 @@ disp('Regressor computed!')
 
 %% Save dataset
 matrices = [];
-
-matrices.robot = robot;
 matrices.M = M;
 matrices.G = G;
 matrices.C = C;
