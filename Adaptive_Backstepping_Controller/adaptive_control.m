@@ -65,7 +65,7 @@ tau = zeros(length(t),num_of_joints);
 % Estimated parameters vector
 piArray = zeros(length(t),num_estim_param); 
 
-q0 = [0 pi/2 pi/2 pi/2 0 ];
+q0 = [0.2 pi/2 pi/2 pi/2 0.1 ];
 q(1,:) = q0; 
 q_dot0 = [0 0 0 0 0];
 q_dot(1,:) = q_dot0; 
@@ -78,7 +78,7 @@ C_real = panda.coriolis(q0,q_dot0);
 G_real = panda.gravload(q0);
 
 pi0 = zeros(1,num_estim_param); 
-d = 10;  % add 2.5% of disturbance to the estimated parameters 
+d = 50;  % add 2.5% of disturbance to the estimated parameters 
 pi0(1,1) = panda.links(1).m * (1 + d/100);
 pi0(1,2) = panda.links(2).m * (1 + d/100);
 pi0(1,3) = panda.links(3).m * (1 + d/100);
@@ -89,7 +89,7 @@ piArray(1,:) = pi0;
 
 
 %% CONTROLLER
-Kp = 1*diag([200 200 200 20 10]);
+ Kp = 0.1*diag([200 200 200 20 10]);
 Kv = 0.1*diag([200 200 200 10 1]); 
 Kd = 0.1*diag([200 200 200 20 1]);
 
@@ -206,24 +206,36 @@ return
 figure(5)
 for j=1:num_of_joints
     subplot(4,2,j);
-    plot(t(1:10001),q(1:10001,j))
+    plot(t(1:20001),q(1:20001,j))
 %     legend ()
     hold on
     plot (t,q_des(j,1:length(t)))
-    legend ('Computed Torque','Desired angle')
+    legend ('CT','Desired angle')
     grid;
 end
 
 
 % Plot Dynamics parameter
 figure(6)
-subplot(2,1,1);
-plot(t(1:10001),piArray(1:10001,1))
+subplot(4,2,1);
+plot(t(1:20001),piArray(1:20001,1))
 legend ('Mass Link 1')
 hold on
-subplot(2,1,2);
-plot(t(1:10001),piArray(1:10001,2))
+subplot(4,2,2);
+plot(t(1:20001),piArray(1:20001,2))
 legend ('Mass Link 2')
+hold on
+subplot(4,2,3);
+plot(t(1:20001),piArray(1:20001,3))
+legend ('Mass Link 3')
+hold on
+subplot(4,2,4);
+plot(t(1:20001),piArray(1:20001,3))
+legend ('Mass Link 4')
+hold on
+subplot(4,2,5);
+plot(t(1:20001),piArray(1:20001,3))
+legend ('Mass Link 5')
 grid;
 
 % Plot error

@@ -19,7 +19,7 @@ grey = [0.5, 0.5, 0.5];
 orange = [0.8, 0.6, 0];
 
 t_in = 0; % [s]
-t_fin = 10; % [s]
+t_fin = 20; % [s]
 delta_t = 0.001; % [s]
 timeSpan= 10;
 
@@ -43,7 +43,7 @@ switch choice
         q_dot0 = [0 0 0 0 0];
         
         pos0 = panda.fkine(q0).t;
-
+        num = 3 %numero di giri
         radius = 0.1; % raggio dell'elica [m]
         center = pos0 - [radius;0;0];
         
@@ -54,9 +54,9 @@ switch choice
 %         theta = 0.1*sin(t/5*2*pi);
         
 %         Fast Trajectory
-        x = center(1) + radius * cos(t/t(end)*2*pi);
-        y = center(2) * ones(size(x));
-        z = center(3) + radius * sin(t/t(end)*2*pi);
+        x = center(1) + radius * cos(t/t(end)*num*2*pi);
+        y = center(2) + radius * cos(t/t(end)*num*2*pi)%* ones(size(x));
+        z = center(3) + radius * sin(t/t(end)*2*num*pi);
         theta = 0.1*sin(t/3*2*pi);
         
         phi = zeros(size(x));
@@ -120,7 +120,7 @@ switch choice
         B = 0.1; %ampiezza [m]
         b = 2;  % frequenza [rad/s]
         delta = pi/2; %sfasamento [rad]
-        num = 2; % numero di giri [#]
+        num = 1; % numero di giri [#]
         center = pos0 - [A;0;0];
 
         x = center(1) + A*sin(a*t/t(end)*num*2*pi+delta);
