@@ -124,7 +124,7 @@ switch choice
         center = pos0 - [A;0;0];
 
         x = center(1) + A*sin(a*t/t(end)*num*2*pi+delta);
-        y = center(2) * ones(size(x));
+        y = center(2) + A*sin(a*t/t(end)*num*2*pi+delta);
         z = center(3) + B* sin(b*t/t(end)*num*2*pi);
         theta = zeros(size(x));
         phi = zeros(size(x));
